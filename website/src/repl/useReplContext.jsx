@@ -216,6 +216,33 @@ export function useReplContext() {
   };
 
   const handleShare = async () => shareCode(replState.code);
+  
+  const [collabUpdateTrigger, setCollabUpdateTrigger] = useState(0);
+  
+  // Setup collab update callback
+  useEffect(() => {
+    if (editorRef.current?.setCollabUpdateCallback) {
+      editorRef.current.setCollabUpdateCallback(() => {
+        setCollabUpdateTrigger(t => t + 1);
+      });
+    }
+  }, [editorRef.current]);
+  
+  const handleConnectCollab = async (lobbyId) => {
+    await editorRef.current?.connectCollab(lobbyId);
+    // Force re-render to update status
+    setCollabUpdateTrigger(t => t + 1);
+  };
+  
+  const handleDisconnectCollab = () => {
+    editorRef.current?.disconnectCollab();
+    // Force re-render to update status
+    setCollabUpdateTrigger(t => t + 1);
+  };
+  
+  // Re-fetch collab info whenever trigger changes
+  const collabInfo = editorRef.current?.getCollabInfo?.() || { status: 'disconnected', peerCount: 0 };
+  
   const context = {
     started,
     pending,
@@ -230,6 +257,9 @@ export function useReplContext() {
     error,
     editorRef,
     containerRef,
+    collabInfo,
+    handleConnectCollab,
+    handleDisconnectCollab,
   };
   return context;
 }

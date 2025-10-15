@@ -2,16 +2,40 @@ import PlayCircleIcon from '@heroicons/react/20/solid/PlayCircleIcon';
 import StopCircleIcon from '@heroicons/react/20/solid/StopCircleIcon';
 import cx from '@src/cx.mjs';
 import { useSettings, setIsZen } from '../../settings.mjs';
+import { useState } from 'react';
 import '../Repl.css';
 
 const { BASE_URL } = import.meta.env;
 const baseNoTrailing = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
 
 export function Header({ context, embedded = false }) {
-  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleShare } =
+  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleShare, collabInfo, handleConnectCollab, handleDisconnectCollab } =
     context;
   const isEmbedded = typeof window !== 'undefined' && (embedded || window.location !== window.parent.location);
   const { isZen, isButtonRowHidden, isCSSAnimationDisabled, fontFamily } = useSettings();
+  const [lobbyCode, setLobbyCode] = useState('strudel-jam-session');
+  
+  const getCollabStatus = () => {
+    if (!collabInfo) return '⚫ offline';
+    const { status, peerCount } = collabInfo;
+    if (status === 'connected') {
+      return `🟢 ${peerCount} ${peerCount === 1 ? 'peer' : 'peers'}`;
+    } else if (status === 'solo') {
+      return '🟡 solo';
+    } else if (status === 'connecting') {
+      return '⚪ connecting';
+    } else {
+      return '⚫ offline';
+    }
+  };
+  
+  const handleToggleCollab = async () => {
+    if (collabInfo?.status === 'disconnected') {
+      await handleConnectCollab(lobbyCode);
+    } else {
+      handleDisconnectCollab();
+    }
+  };
 
   return (
     <header
@@ -50,10 +74,31 @@ export function Header({ context, embedded = false }) {
             <span className="block text-foreground rotate-90">꩜</span>
           </div>
           {!isZen && (
-            <div className="space-x-2">
+            <div className="space-x-2 flex items-center">
               <span className="">strudel</span>
               <span className="text-sm font-medium">REPL</span>
-              <span className="text-xs opacity-50 animate-pulse">🟢 LIVE</span>
+              <div className="flex items-center space-x-1">
+                <span className="text-xs">{getCollabStatus()}</span>
+                <input
+                  type="text"
+                  value={lobbyCode}
+                  onChange={(e) => setLobbyCode(e.target.value)}
+                  placeholder="lobby"
+                  className="px-1 py-0.5 text-xs bg-gray-800 border border-gray-600 rounded text-foreground w-24"
+                  disabled={collabInfo?.status !== 'disconnected'}
+                />
+                <button
+                  onClick={handleToggleCollab}
+                  className={cx(
+                    'px-2 py-0.5 text-xs rounded font-medium',
+                    collabInfo?.status === 'disconnected' 
+                      ? 'bg-green-600 hover:bg-green-700 text-white' 
+                      : 'bg-red-600 hover:bg-red-700 text-white'
+                  )}
+                >
+                  {collabInfo?.status === 'disconnected' ? 'Connect' : 'Disconnect'}
+                </button>
+              </div>
               {!isEmbedded && isButtonRowHidden && (
                 <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium">
                   DOCS

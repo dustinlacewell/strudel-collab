@@ -165,7 +165,7 @@ export class StrudelMirror {
     this.id = id || s4();
     this.solo = solo;
     this.enableCollab = enableCollab;
-    this.collabSession = null;
+    this.collabSession = enableCollab ? new CollabSession(null) : null;
     this.bgFill = bgFill;
 
     this.drawer = new Drawer((haps, time, _, painters) => {
@@ -257,23 +257,38 @@ export class StrudelMirror {
     };
     document.addEventListener('start-repl', this.onStartRepl);
     
-    // Initialize collab after editor is ready
-    if (this.enableCollab) {
-      this.initCollab().then(() => {
-        autodraw && this.drawFirstFrame();
-      }).catch(() => {
-        console.error('[strudel] Collab init failed');
-        autodraw && this.drawFirstFrame();
-      });
-    } else {
-      autodraw && this.drawFirstFrame();
+    // Setup collab session with editor reference
+    if (this.enableCollab && this.collabSession) {
+      this.collabSession.editor = this.editor;
+      this.collabUpdateCallback = null;
+      this.collabSession.onStatusChange = () => {
+        console.log('[strudel] Collab status changed:', this.collabSession.status, 'peers:', this.collabSession.connections.size);
+        // Trigger React re-render via callback
+        if (this.collabUpdateCallback) {
+          this.collabUpdateCallback();
+        }
+      };
     }
+    
+    autodraw && this.drawFirstFrame();
   }
   
-  async initCollab() {
-    this.collabSession = new CollabSession(this.editor);
-    await this.collabSession.start();
-    console.log('[strudel] Collab initialized');
+  async connectCollab(lobbyId) {
+    if (!this.collabSession) return;
+    await this.collabSession.connect(lobbyId);
+  }
+  
+  disconnectCollab() {
+    if (!this.collabSession) return;
+    this.collabSession.disconnect();
+  }
+  
+  getCollabInfo() {
+    return this.collabSession?.getConnectionInfo() || { status: 'disconnected', peerCount: 0, isAuthority: false };
+  }
+  
+  setCollabUpdateCallback(callback) {
+    this.collabUpdateCallback = callback;
   }
   draw(haps, time, painters) {
     painters?.forEach((painter) => painter(this.drawContext, time, haps, this.drawTime));

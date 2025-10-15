@@ -1,8 +1,5 @@
 import Peer from 'peerjs';
 
-// Fixed lobby - everyone joins the same room
-const LOBBY_ID = 'strudel-jam-session';
-
 export class CollabSession {
   constructor(editor) {
     this.editor = editor;
@@ -11,9 +8,20 @@ export class CollabSession {
     this.peerId = null;
     this.isAuthority = false;
     this.ignoreChanges = false;
+    this.status = 'disconnected'; // 'disconnected' | 'connecting' | 'connected' | 'solo'
+    this.onStatusChange = null;
+    this.lobbyId = null;
   }
 
-  async start() {
+  async connect(lobbyId) {
+    if (this.peer) {
+      this.disconnect();
+    }
+    
+    this.lobbyId = lobbyId || 'strudel-jam-session';
+    this.status = 'connecting';
+    this.onStatusChange?.();
+    
     return new Promise((resolve) => {
       this.peer = new Peer();
       
@@ -32,7 +40,7 @@ export class CollabSession {
 
   connectToLobby() {
     // Try to connect to the lobby
-    const lobbyConn = this.peer.connect(LOBBY_ID);
+    const lobbyConn = this.peer.connect(this.lobbyId);
     let connected = false;
     
     setTimeout(() => {
@@ -40,8 +48,10 @@ export class CollabSession {
         // If can't connect, become the lobby
         console.log('[collab] Becoming lobby coordinator');
         this.isAuthority = true;
+        this.status = 'solo';
+        this.onStatusChange?.();
         this.peer.destroy();
-        this.peer = new Peer(LOBBY_ID);
+        this.peer = new Peer(this.lobbyId);
         
         this.peer.on('connection', (conn) => {
           console.log('[collab] Peer joined:', conn.peer);
@@ -52,6 +62,8 @@ export class CollabSession {
               type: 'sync',
               code: this.editor.state.doc.toString()
             });
+            this.status = 'connected';
+            this.onStatusChange?.();
           });
         });
       }
@@ -60,6 +72,8 @@ export class CollabSession {
     lobbyConn.on('open', () => {
       connected = true;
       console.log('[collab] Connected to lobby');
+      this.status = 'connected';
+      this.onStatusChange?.();
       this.setupConnection(lobbyConn);
       // Request current code
       lobbyConn.send({ type: 'requestSync' });
@@ -102,7 +116,19 @@ export class CollabSession {
     conn.on('close', () => {
       console.log('[collab] Peer left:', conn.peer);
       this.connections.delete(conn.peer);
+      if (this.connections.size === 0 && this.isAuthority) {
+        this.status = 'solo';
+      }
+      this.onStatusChange?.();
     });
+  }
+  
+  getConnectionInfo() {
+    return {
+      status: this.status,
+      peerCount: this.connections.size,
+      isAuthority: this.isAuthority
+    };
   }
 
   broadcastChange(code) {
@@ -116,8 +142,17 @@ export class CollabSession {
     }
   }
 
-  destroy() {
+  disconnect() {
+    console.log('[collab] Disconnecting...');
     this.peer?.destroy();
     this.connections.clear();
+    this.peer = null;
+    this.isAuthority = false;
+    this.status = 'disconnected';
+    this.onStatusChange?.();
+  }
+  
+  isConnected() {
+    return this.status === 'connected' || this.status === 'solo';
   }
 }
