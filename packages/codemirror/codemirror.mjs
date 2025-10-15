@@ -229,7 +229,16 @@ export class StrudelMirror {
           this.repl.setCode?.(this.code);
           // Broadcast changes if collab is enabled
           if (this.collabSession) {
-            this.collabSession.broadcastChange(this.code);
+            // Send actual change transactions, not full document
+            const changes = [];
+            v.changes.iterChanges((fromA, toA, fromB, toB, inserted) => {
+              changes.push({
+                from: fromA,
+                to: toA,
+                insert: inserted.toString()
+              });
+            });
+            this.collabSession.broadcastChange(changes);
           }
         }
       },

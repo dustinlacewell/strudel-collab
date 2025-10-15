@@ -121,11 +121,12 @@ export class CollabSession {
         }
         console.log('[collab] Synced with peer, known peers:', this.knownPeers.size);
       } else if (data.type === 'change') {
-        // Receive incremental change
+        // Receive incremental change transactions
         if (!this.ignoreChanges) {
           this.ignoreChanges = true;
+          // Apply the actual change transactions to preserve cursor positions
           this.editor.dispatch({
-            changes: { from: 0, to: this.editor.state.doc.length, insert: data.code }
+            changes: data.changes
           });
           this.ignoreChanges = false;
           
@@ -133,7 +134,7 @@ export class CollabSession {
           if (this.isAuthority) {
             this.broadcast({
               type: 'change',
-              code: data.code
+              changes: data.changes
             }, conn.peer); // Exclude sender
           }
         }
@@ -287,13 +288,13 @@ export class CollabSession {
     }
   }
 
-  broadcastChange(code) {
+  broadcastChange(changes) {
     if (this.ignoreChanges) return;
     
     for (let conn of this.connections.values()) {
       conn.send({
         type: 'change',
-        code
+        changes
       });
     }
   }
