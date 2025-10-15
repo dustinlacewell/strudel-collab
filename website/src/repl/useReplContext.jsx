@@ -63,12 +63,14 @@ async function getModule(name) {
 const initialCode = `// LOADING`;
 
 export function useReplContext() {
+  console.log('[useReplContext] Hook called/re-rendered');
   const { isSyncEnabled, audioEngineTarget } = useSettings();
   const shouldUseWebaudio = audioEngineTarget !== audioEngineTargets.osc;
   const defaultOutput = shouldUseWebaudio ? webaudioOutput : superdirtOutput;
   const getTime = shouldUseWebaudio ? getAudioContextCurrentTime : getPerformanceTimeSeconds;
 
   const init = useCallback(() => {
+    console.log('[useReplContext] init() called');
     const drawTime = [-2, 2];
     const drawContext = getDrawContext();
     const editor = new StrudelMirror({
@@ -84,6 +86,7 @@ export function useReplContext() {
       pattern: silence,
       drawTime,
       drawContext,
+      enableCollab: true, // Enable collaborative editing
       prebake: async () => Promise.all([modulesLoading, presets]),
       onUpdateState: (state) => {
         setReplState({ ...state });
@@ -146,13 +149,16 @@ export function useReplContext() {
       logger(`Welcome to Strudel! ${msg} Press play or hit ctrl+enter to run it!`, 'highlight');
     });
 
+    console.log('[useReplContext] Setting editorRef.current to:', editor);
     editorRef.current = editor;
+    console.log('[useReplContext] editorRef.current is now:', editorRef.current);
   }, []);
 
-  const [replState, setReplState] = useState({});
-  const { started, isDirty, error, activeCode, pending } = replState;
   const editorRef = useRef();
   const containerRef = useRef();
+  
+  const [replState, setReplState] = useState({});
+  const { started, isDirty, error, activeCode, pending } = replState;
 
   // this can be simplified once SettingsTab has been refactored to change codemirrorSettings directly!
   // this will be the case when the main repl is being replaced
@@ -215,6 +221,41 @@ export function useReplContext() {
   };
 
   const handleShare = async () => shareCode(replState.code);
+  
+  const [collabUpdateTrigger, setCollabUpdateTrigger] = useState(0);
+  
+  // Setup collab update callback
+  useEffect(() => {
+    if (editorRef.current?.setCollabUpdateCallback) {
+      editorRef.current.setCollabUpdateCallback(() => {
+        setCollabUpdateTrigger(t => t + 1);
+      });
+    }
+  }, [editorRef.current]);
+  
+  const handleConnectCollab = async (lobbyId) => {
+    console.log('[useReplContext] handleConnectCollab called with:', lobbyId);
+    console.log('[useReplContext] editorRef.current:', editorRef.current);
+    console.log('[useReplContext] editorRef.current.connectCollab:', editorRef.current?.connectCollab);
+    await editorRef.current?.connectCollab(lobbyId);
+    console.log('[useReplContext] connectCollab finished');
+    // Force re-render to update status
+    setCollabUpdateTrigger(t => t + 1);
+  };
+  
+  const handleDisconnectCollab = () => {
+    editorRef.current?.disconnectCollab();
+    // Force re-render to update status
+    setCollabUpdateTrigger(t => t + 1);
+  };
+  
+  // Re-fetch collab info whenever trigger changes
+  const collabInfo = editorRef.current?.getCollabInfo?.() || { status: 'disconnected', peerCount: 0 };
+  
+  // Don't capture editorRef.current at render time - let consumers read it when needed
+  const strudelMirror = editorRef.current;
+  console.log('[useReplContext] Returning context, strudelMirror:', strudelMirror);
+  
   const context = {
     started,
     pending,
@@ -229,6 +270,10 @@ export function useReplContext() {
     error,
     editorRef,
     containerRef,
+    strudelMirror,
+    collabInfo,
+    handleConnectCollab,
+    handleDisconnectCollab,
   };
   return context;
 }

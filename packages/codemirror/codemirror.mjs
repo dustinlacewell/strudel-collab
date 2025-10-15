@@ -25,6 +25,7 @@ import { sliderPlugin, updateSliderWidgets } from './slider.mjs';
 import { widgetPlugin, updateWidgets } from './widget.mjs';
 import { persistentAtom } from '@nanostores/persistent';
 import { basicSetup } from './basicSetup.mjs';
+import { YjsCollabSession } from './collab-yjs.mjs';
 
 const extensions = {
   isLineWrappingEnabled: (on) => (on ? EditorView.lineWrapping : []),
@@ -73,13 +74,14 @@ export const codemirrorSettings = persistentAtom('codemirror-settings', defaultS
 });
 
 // https://codemirror.net/docs/guide/
-export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, root, mondo }) {
+export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, root, mondo, collabExtension }) {
   const settings = codemirrorSettings.get();
   const initialSettings = Object.keys(compartments).map((key) =>
     compartments[key].of(extensions[key](parseBooleans(settings[key]))),
   );
 
   initTheme(settings.theme);
+
   let state = EditorState.create({
     doc: initialCode,
     extensions: [
@@ -88,6 +90,7 @@ export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, roo
       ...initialSettings,
       basicSetup,
       mondo ? [] : javascript(),
+      collabExtension || [], // Add Yjs collab extension if provided
       javascriptLanguage.data.of({
         closeBrackets: { brackets: ['(', '[', '{', "'", '"', '<'] },
         bracketMatching: { brackets: ['(', '[', '{', "'", '"', '<'] },
@@ -150,6 +153,7 @@ export class StrudelMirror {
       prebake,
       bgFill = true,
       solo = true,
+      enableCollab = false,
       ...replOptions
     } = options;
     this.code = initialCode;
@@ -161,6 +165,9 @@ export class StrudelMirror {
     this.onDraw = onDraw || this.draw;
     this.id = id || s4();
     this.solo = solo;
+    this.enableCollab = enableCollab;
+    this.collabSession = enableCollab ? new YjsCollabSession(null) : null;
+    this.bgFill = bgFill;
 
     this.drawer = new Drawer((haps, time, _, painters) => {
       const currentFrame = haps.filter((hap) => hap.isActive(time));
@@ -169,7 +176,6 @@ export class StrudelMirror {
     }, drawTime);
 
     this.prebaked = prebake();
-    autodraw && this.drawFirstFrame();
     this.repl = repl({
       ...replOptions,
       id,
@@ -213,6 +219,8 @@ export class StrudelMirror {
         this.drawer.invalidate(this.repl.scheduler);
       },
     });
+    
+    // Create editor immediately (sync)
     this.editor = initEditor({
       root,
       initialCode,
@@ -220,16 +228,18 @@ export class StrudelMirror {
         if (v.docChanged) {
           this.code = v.state.doc.toString();
           this.repl.setCode?.(this.code);
+          // Note: Yjs handles broadcasting automatically via y-codemirror extension
         }
       },
       onEvaluate: () => this.evaluate(),
       onStop: () => this.stop(),
-      mondo: replOptions.mondo,
+      mondo: replOptions?.mondo,
+      collabExtension: this.collabSession?.getExtension(),
     });
     const cmEditor = this.root.querySelector('.cm-editor');
     if (cmEditor) {
       this.root.style.display = 'block';
-      if (bgFill) {
+      if (this.bgFill) {
         this.root.style.backgroundColor = 'var(--background)';
       }
       cmEditor.style.backgroundColor = 'transparent';
@@ -245,6 +255,59 @@ export class StrudelMirror {
       }
     };
     document.addEventListener('start-repl', this.onStartRepl);
+    
+    // Setup collab session with editor reference
+    if (this.enableCollab && this.collabSession) {
+      this.collabSession.editor = this.editor;
+      this.collabUpdateCallback = null;
+      this.collabSession.onStatusChange = () => {
+        console.log('[strudel] Collab status changed:', this.collabSession.status, 'peers:', this.collabSession.connections.size);
+        // Trigger React re-render via callback
+        if (this.collabUpdateCallback) {
+          this.collabUpdateCallback();
+        }
+      };
+      this.collabSession.onEvaluate = async () => {
+        // Only evaluate if we're currently playing
+        if (this.repl.scheduler.started) {
+          console.log('[collab] Received evaluate from peer, updating...');
+          try {
+            await this.evaluateWithoutBroadcast();
+          } catch (err) {
+            // Log error but don't break collaboration
+            // The error is already logged by repl.evaluate() to the UI
+            console.warn('[collab] Peer code evaluation failed:', err.message);
+            // Error is already shown in UI via repl's error handling
+          }
+        }
+      };
+    }
+    
+    autodraw && this.drawFirstFrame();
+  }
+  
+  async connectCollab(lobbyId) {
+    console.log('[StrudelMirror] connectCollab called with:', lobbyId);
+    if (!this.collabSession) {
+      console.error('[StrudelMirror] No collab session!');
+      return;
+    }
+    console.log('[StrudelMirror] Calling collabSession.connect...');
+    await this.collabSession.connect(lobbyId);
+    console.log('[StrudelMirror] Connect complete');
+  }
+  
+  disconnectCollab() {
+    if (!this.collabSession) return;
+    this.collabSession.disconnect();
+  }
+  
+  getCollabInfo() {
+    return this.collabSession?.getConnectionInfo() || { status: 'disconnected', peerCount: 0, isAuthority: false };
+  }
+  
+  setCollabUpdateCallback(callback) {
+    this.collabUpdateCallback = callback;
   }
   draw(haps, time, painters) {
     painters?.forEach((painter) => painter(this.drawContext, time, haps, this.drawTime));
@@ -265,6 +328,14 @@ export class StrudelMirror {
     }
   }
   async evaluate() {
+    this.flash();
+    await this.repl.evaluate(this.code);
+    // Broadcast evaluate to peers
+    if (this.collabSession) {
+      this.collabSession.broadcastEvaluate();
+    }
+  }
+  async evaluateWithoutBroadcast() {
     this.flash();
     await this.repl.evaluate(this.code);
   }

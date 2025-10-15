@@ -1,17 +1,17 @@
 import PlayCircleIcon from '@heroicons/react/20/solid/PlayCircleIcon';
 import StopCircleIcon from '@heroicons/react/20/solid/StopCircleIcon';
 import cx from '@src/cx.mjs';
-import { useSettings, setIsZen } from '../../settings.mjs';
+import { useSettings, setIsZen, setActiveFooter, setIsPanelOpened } from '../../settings.mjs';
 import '../Repl.css';
 
 const { BASE_URL } = import.meta.env;
 const baseNoTrailing = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
 
 export function Header({ context, embedded = false }) {
-  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleShare } =
+  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleShare, collabInfo } =
     context;
   const isEmbedded = typeof window !== 'undefined' && (embedded || window.location !== window.parent.location);
-  const { isZen, isButtonRowHidden, isCSSAnimationDisabled, fontFamily } = useSettings();
+  const { isZen, isButtonRowHidden, isCSSAnimationDisabled, fontFamily, activeFooter, isPanelOpen } = useSettings();
 
   return (
     <header
@@ -50,20 +50,53 @@ export function Header({ context, embedded = false }) {
             <span className="block text-foreground rotate-90">꩜</span>
           </div>
           {!isZen && (
-            <div className="space-x-2">
-              <span className="">strudel</span>
-              <span className="text-sm font-medium">REPL</span>
+            <>
+              <div className="flex items-center space-x-2">
+                <span className="">strudel</span>
+                <span className="text-sm font-medium">REPL</span>
+              </div>
               {!isEmbedded && isButtonRowHidden && (
-                <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium">
+                <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium border-l border-gray-600 pl-3">
                   DOCS
                 </a>
               )}
-            </div>
+            </>
           )}
         </h1>
       </div>
       {!isZen && !isButtonRowHidden && (
         <div className="flex max-w-full overflow-auto text-foreground px-1 md:px-2">
+          {!isEmbedded && (
+            <button
+              onClick={() => {
+                if (activeFooter === 'collab' && isPanelOpen) {
+                  setIsPanelOpened(false);
+                } else {
+                  setActiveFooter('collab');
+                  setIsPanelOpened(true);
+                }
+              }}
+              title={collabInfo?.status || 'disconnected'}
+              className={cx(
+                'p-2 hover:opacity-50 flex items-center space-x-2',
+                activeFooter === 'collab' && isPanelOpen && 'opacity-100',
+              )}
+            >
+              <div
+                className={cx(
+                  'w-2 h-2 rounded-full',
+                  collabInfo?.status === 'connected'
+                    ? 'bg-green-500'
+                    : collabInfo?.status === 'solo'
+                    ? 'bg-orange-500'
+                    : collabInfo?.status === 'connecting'
+                    ? 'bg-yellow-500 animate-pulse'
+                    : 'bg-gray-500',
+                )}
+              />
+              <span>collab</span>
+            </button>
+          )}
           <button
             onClick={handleTogglePlay}
             title={started ? 'stop' : 'play'}
