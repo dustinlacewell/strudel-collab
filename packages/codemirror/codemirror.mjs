@@ -25,6 +25,7 @@ import { sliderPlugin, updateSliderWidgets } from './slider.mjs';
 import { widgetPlugin, updateWidgets } from './widget.mjs';
 import { persistentAtom } from '@nanostores/persistent';
 import { basicSetup } from './basicSetup.mjs';
+import { CollabSession } from './collab.mjs';
 
 const extensions = {
   isLineWrappingEnabled: (on) => (on ? EditorView.lineWrapping : []),
@@ -80,6 +81,7 @@ export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, roo
   );
 
   initTheme(settings.theme);
+
   let state = EditorState.create({
     doc: initialCode,
     extensions: [
@@ -150,6 +152,7 @@ export class StrudelMirror {
       prebake,
       bgFill = true,
       solo = true,
+      enableCollab = false,
       ...replOptions
     } = options;
     this.code = initialCode;
@@ -161,6 +164,9 @@ export class StrudelMirror {
     this.onDraw = onDraw || this.draw;
     this.id = id || s4();
     this.solo = solo;
+    this.enableCollab = enableCollab;
+    this.collabSession = null;
+    this.bgFill = bgFill;
 
     this.drawer = new Drawer((haps, time, _, painters) => {
       const currentFrame = haps.filter((hap) => hap.isActive(time));
@@ -169,7 +175,6 @@ export class StrudelMirror {
     }, drawTime);
 
     this.prebaked = prebake();
-    autodraw && this.drawFirstFrame();
     this.repl = repl({
       ...replOptions,
       id,
@@ -213,6 +218,8 @@ export class StrudelMirror {
         this.drawer.invalidate(this.repl.scheduler);
       },
     });
+    
+    // Create editor immediately (sync)
     this.editor = initEditor({
       root,
       initialCode,
@@ -220,16 +227,20 @@ export class StrudelMirror {
         if (v.docChanged) {
           this.code = v.state.doc.toString();
           this.repl.setCode?.(this.code);
+          // Broadcast changes if collab is enabled
+          if (this.collabSession) {
+            this.collabSession.broadcastChange(this.code);
+          }
         }
       },
       onEvaluate: () => this.evaluate(),
       onStop: () => this.stop(),
-      mondo: replOptions.mondo,
+      mondo: replOptions?.mondo,
     });
     const cmEditor = this.root.querySelector('.cm-editor');
     if (cmEditor) {
       this.root.style.display = 'block';
-      if (bgFill) {
+      if (this.bgFill) {
         this.root.style.backgroundColor = 'var(--background)';
       }
       cmEditor.style.backgroundColor = 'transparent';
@@ -245,6 +256,24 @@ export class StrudelMirror {
       }
     };
     document.addEventListener('start-repl', this.onStartRepl);
+    
+    // Initialize collab after editor is ready
+    if (this.enableCollab) {
+      this.initCollab().then(() => {
+        autodraw && this.drawFirstFrame();
+      }).catch(() => {
+        console.error('[strudel] Collab init failed');
+        autodraw && this.drawFirstFrame();
+      });
+    } else {
+      autodraw && this.drawFirstFrame();
+    }
+  }
+  
+  async initCollab() {
+    this.collabSession = new CollabSession(this.editor);
+    await this.collabSession.start();
+    console.log('[strudel] Collab initialized');
   }
   draw(haps, time, painters) {
     painters?.forEach((painter) => painter(this.drawContext, time, haps, this.drawTime));

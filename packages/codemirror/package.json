@@ -33,6 +33,7 @@
   "homepage": "https://codeberg.org/uzu/strudel#readme",
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.4",
+    "@codemirror/collab": "^6.1.1",
     "@codemirror/commands": "^6.8.0",
     "@codemirror/lang-javascript": "^6.2.2",
     "@codemirror/language": "^6.10.8",
@@ -47,7 +48,8 @@
     "@strudel/core": "workspace:*",
     "@strudel/draw": "workspace:*",
     "@strudel/transpiler": "workspace:*",
-    "nanostores": "^0.11.3"
+    "nanostores": "^0.11.3",
+    "peerjs": "^1.5.4"
   },
   "devDependencies": {
     "vite": "^6.0.11"

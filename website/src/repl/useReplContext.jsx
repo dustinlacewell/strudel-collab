@@ -84,6 +84,7 @@ export function useReplContext() {
       pattern: silence,
       drawTime,
       drawContext,
+      enableCollab: true, // Enable collaborative editing
       prebake: async () => Promise.all([modulesLoading, presets]),
       onUpdateState: (state) => {
         setReplState({ ...state });

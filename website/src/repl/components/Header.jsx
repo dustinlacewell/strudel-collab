@@ -53,6 +53,7 @@ export function Header({ context, embedded = false }) {
             <div className="space-x-2">
               <span className="">strudel</span>
               <span className="text-sm font-medium">REPL</span>
+              <span className="text-xs opacity-50 animate-pulse">🟢 LIVE</span>
               {!isEmbedded && isButtonRowHidden && (
                 <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium">
                   DOCS
