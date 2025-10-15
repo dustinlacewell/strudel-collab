@@ -229,9 +229,13 @@ let wetfade = (d) => (d < 0.5 ? 1 : 1 - (d - 0.5) / 0.5);
 // still not too sure about how this could be used more generally...
 export function drywet(dry, wet, wetAmount = 0) {
   const ac = getAudioContext();
-  if (!wetAmount) {
+  // Validate wetAmount is finite
+  if (!wetAmount || !isFinite(wetAmount)) {
     return dry;
   }
+  // Clamp wetAmount to valid range [0, 1]
+  wetAmount = Math.max(0, Math.min(1, wetAmount));
+  
   let dry_gain = ac.createGain();
   let wet_gain = ac.createGain();
   dry.connect(dry_gain);
