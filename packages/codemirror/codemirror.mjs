@@ -272,7 +272,7 @@ export class StrudelMirror {
         // Only evaluate if we're currently playing
         if (this.repl.scheduler.started) {
           console.log('[collab] Received evaluate from peer, updating...');
-          this.evaluate();
+          this.evaluateWithoutBroadcast();
         }
       };
     }
@@ -322,6 +322,10 @@ export class StrudelMirror {
     if (this.collabSession) {
       this.collabSession.broadcastEvaluate();
     }
+  }
+  async evaluateWithoutBroadcast() {
+    this.flash();
+    await this.repl.evaluate(this.code);
   }
   async stop() {
     this.repl.scheduler.stop();
