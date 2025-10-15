@@ -277,11 +277,18 @@ export class StrudelMirror {
           this.collabUpdateCallback();
         }
       };
-      this.collabSession.onEvaluate = () => {
+      this.collabSession.onEvaluate = async () => {
         // Only evaluate if we're currently playing
         if (this.repl.scheduler.started) {
           console.log('[collab] Received evaluate from peer, updating...');
-          this.evaluateWithoutBroadcast();
+          try {
+            await this.evaluateWithoutBroadcast();
+          } catch (err) {
+            // Log error but don't break collaboration
+            // The error is already logged by repl.evaluate() to the UI
+            console.warn('[collab] Peer code evaluation failed:', err.message);
+            // Error is already shown in UI via repl's error handling
+          }
         }
       };
     }
