@@ -268,6 +268,13 @@ export class StrudelMirror {
           this.collabUpdateCallback();
         }
       };
+      this.collabSession.onEvaluate = () => {
+        // Only evaluate if we're currently playing
+        if (this.repl.scheduler.started) {
+          console.log('[collab] Received evaluate from peer, updating...');
+          this.evaluate();
+        }
+      };
     }
     
     autodraw && this.drawFirstFrame();
@@ -311,6 +318,10 @@ export class StrudelMirror {
   async evaluate() {
     this.flash();
     await this.repl.evaluate(this.code);
+    // Broadcast evaluate to peers
+    if (this.collabSession) {
+      this.collabSession.broadcastEvaluate();
+    }
   }
   async stop() {
     this.repl.scheduler.stop();

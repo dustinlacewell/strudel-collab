@@ -10,6 +10,7 @@ export class CollabSession {
     this.ignoreChanges = false;
     this.status = 'disconnected'; // 'disconnected' | 'connecting' | 'connected' | 'solo'
     this.onStatusChange = null;
+    this.onEvaluate = null;
     this.lobbyId = null;
   }
 
@@ -110,6 +111,9 @@ export class CollabSession {
           type: 'sync',
           code: this.editor.state.doc.toString()
         });
+      } else if (data.type === 'evaluate') {
+        // Receive evaluate request
+        this.onEvaluate?.();
       }
     });
 
@@ -138,6 +142,15 @@ export class CollabSession {
       conn.send({
         type: 'change',
         code
+      });
+    }
+  }
+  
+  broadcastEvaluate() {
+    console.log('[collab] Broadcasting evaluate to', this.connections.size, 'peers');
+    for (let conn of this.connections.values()) {
+      conn.send({
+        type: 'evaluate'
       });
     }
   }
