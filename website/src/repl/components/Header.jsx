@@ -9,7 +9,7 @@ const { BASE_URL } = import.meta.env;
 const baseNoTrailing = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
 
 export function Header({ context, embedded = false }) {
-  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleShare, collabInfo, handleConnectCollab, handleDisconnectCollab } =
+  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShuffle, handleShare, collabInfo, handleConnectCollab, handleDisconnectCollab, handleSaveFile, handleLoadFile } =
     context;
   const isEmbedded = typeof window !== 'undefined' && (embedded || window.location !== window.parent.location);
   const { isZen, isButtonRowHidden, isCSSAnimationDisabled, fontFamily } = useSettings();
@@ -74,33 +74,47 @@ export function Header({ context, embedded = false }) {
             <span className="block text-foreground rotate-90">꩜</span>
           </div>
           {!isZen && (
-            <div className="space-x-2 flex items-center">
-              <span className="">strudel</span>
-              <span className="text-sm font-medium">REPL</span>
-              <div className="flex items-center space-x-1">
-                <span className="text-xs">{getCollabStatus()}</span>
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <span className="">strudel</span>
+                <span className="text-sm font-medium">REPL</span>
+              </div>
+              <div className="flex items-center space-x-1.5 border-l border-gray-600 pl-3">
+                <span className="text-xs whitespace-nowrap">{getCollabStatus()}</span>
                 <input
                   type="text"
                   value={lobbyCode}
                   onChange={(e) => setLobbyCode(e.target.value)}
                   placeholder="lobby"
-                  className="px-1 py-0.5 text-xs bg-gray-800 border border-gray-600 rounded text-foreground w-24"
+                  className="px-2 py-1 text-xs bg-gray-800 border border-gray-600 rounded text-foreground w-28"
                   disabled={collabInfo?.status !== 'disconnected'}
                 />
                 <button
                   onClick={handleToggleCollab}
-                  className={cx(
-                    'px-2 py-0.5 text-xs rounded font-medium',
-                    collabInfo?.status === 'disconnected' 
-                      ? 'bg-green-600 hover:bg-green-700 text-white' 
-                      : 'bg-red-600 hover:bg-red-700 text-white'
-                  )}
+                  className="px-2 py-0.5 text-xs rounded font-medium bg-white hover:bg-gray-200 text-black"
+                  title={collabInfo?.status === 'disconnected' ? 'Connect to lobby' : 'Disconnect from lobby'}
                 >
-                  {collabInfo?.status === 'disconnected' ? 'Connect' : 'Disconnect'}
+                  {collabInfo?.status === 'disconnected' ? '🔌' : '⛓️‍💥'}
                 </button>
+                <div className="flex items-center space-x-1 border-l border-gray-600 pl-1.5">
+                  <button
+                    onClick={handleLoadFile}
+                    className="px-2 py-0.5 text-xs rounded font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                    title="Load from file"
+                  >
+                    📂
+                  </button>
+                  <button
+                    onClick={handleSaveFile}
+                    className="px-2 py-0.5 text-xs rounded font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                    title="Save to file"
+                  >
+                    💾
+                  </button>
+                </div>
               </div>
               {!isEmbedded && isButtonRowHidden && (
-                <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium">
+                <a href={`${baseNoTrailing}/learn`} className="text-sm opacity-25 font-medium border-l border-gray-600 pl-3">
                   DOCS
                 </a>
               )}

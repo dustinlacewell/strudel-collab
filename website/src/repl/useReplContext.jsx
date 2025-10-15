@@ -217,6 +217,46 @@ export function useReplContext() {
 
   const handleShare = async () => shareCode(replState.code);
   
+  const handleSaveFile = async () => {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: 'pattern.std',
+        types: [{
+          description: 'Strudel Files',
+          accept: { 'text/plain': ['.std'] }
+        }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(editorRef.current?.code || '');
+      await writable.close();
+      logger('[repl] 💾 File saved');
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Save failed:', err);
+      }
+    }
+  };
+  
+  const handleLoadFile = async () => {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{
+          description: 'Strudel Files',
+          accept: { 'text/plain': ['.std', '.txt'] }
+        }],
+        multiple: false
+      });
+      const file = await handle.getFile();
+      const code = await file.text();
+      editorRef.current?.setCode(code);
+      logger(`[repl] 📂 Loaded ${handle.name}`);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Load failed:', err);
+      }
+    }
+  };
+  
   const [collabUpdateTrigger, setCollabUpdateTrigger] = useState(0);
   
   // Setup collab update callback
@@ -253,6 +293,8 @@ export function useReplContext() {
     handleShuffle,
     handleShare,
     handleEvaluate,
+    handleSaveFile,
+    handleLoadFile,
     init,
     error,
     editorRef,
