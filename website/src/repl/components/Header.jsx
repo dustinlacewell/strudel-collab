@@ -16,17 +16,17 @@ export function Header({ context, embedded = false }) {
   const [lobbyCode, setLobbyCode] = useState('strudel-jam-session');
   
   const getCollabStatus = () => {
-    if (!collabInfo) return '⚫ offline';
-    const { status, peerCount } = collabInfo;
-    if (status === 'connected') {
-      return `🟢 ${peerCount} ${peerCount === 1 ? 'peer' : 'peers'}`;
-    } else if (status === 'solo') {
-      return '🟡 solo';
-    } else if (status === 'connecting') {
-      return '⚪ connecting';
-    } else {
-      return '⚫ offline';
-    }
+    if (!collabInfo) return <span>⚫ offline</span>;
+    const { status, peerCount, isAuthority } = collabInfo;
+    const text = status === 'connected' 
+      ? `🟢 ${peerCount} ${peerCount === 1 ? 'peer' : 'peers'}`
+      : status === 'solo'
+      ? '🟡 solo'
+      : status === 'connecting'
+      ? '⚪ connecting'
+      : '⚫ offline';
+    
+    return <span className={isAuthority ? 'underline' : ''}>{text}</span>;
   };
   
   const handleToggleCollab = async () => {
