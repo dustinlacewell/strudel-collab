@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import { closeBrackets } from '@codemirror/autocomplete';
 export { toggleComment, toggleBlockComment, toggleLineComment, toggleBlockCommentByLine } from '@codemirror/commands';
 // import { search, highlightSelectionMatches } from '@codemirror/search';
@@ -80,6 +81,7 @@ export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, roo
   );
 
   initTheme(settings.theme);
+
   let state = EditorState.create({
     doc: initialCode,
     extensions: [
@@ -137,7 +139,7 @@ export function initEditor({ initialCode = '', onChange, onEvaluate, onStop, roo
   });
 }
 
-export class StrudelMirror {
+export class StrudelMirror extends EventEmitter {
   constructor(options) {
     const {
       root,
@@ -152,6 +154,7 @@ export class StrudelMirror {
       solo = true,
       ...replOptions
     } = options;
+    super();
     this.code = initialCode;
     this.root = root;
     this.miniLocations = [];
@@ -169,7 +172,6 @@ export class StrudelMirror {
     }, drawTime);
 
     this.prebaked = prebake();
-    autodraw && this.drawFirstFrame();
     this.repl = repl({
       ...replOptions,
       id,
@@ -213,6 +215,7 @@ export class StrudelMirror {
         this.drawer.invalidate(this.repl.scheduler);
       },
     });
+    
     this.editor = initEditor({
       root,
       initialCode,
@@ -245,6 +248,8 @@ export class StrudelMirror {
       }
     };
     document.addEventListener('start-repl', this.onStartRepl);
+    
+    autodraw && this.drawFirstFrame();
   }
   draw(haps, time, painters) {
     painters?.forEach((painter) => painter(this.drawContext, time, haps, this.drawTime));
@@ -267,6 +272,7 @@ export class StrudelMirror {
   async evaluate() {
     this.flash();
     await this.repl.evaluate(this.code);
+    this.emit('afterEvaluate');
   }
   async stop() {
     this.repl.scheduler.stop();
