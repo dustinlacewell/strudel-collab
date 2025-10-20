@@ -6,7 +6,7 @@ import { Compartment, StateEffect } from '@codemirror/state';
 import { EventEmitter } from 'events';
 
 const signaling = [
-  'ws://yjs.ldlework.com:4444',
+  'wss://yjs.ldlework.com:4444',
 ]
 
 const userColors = [
