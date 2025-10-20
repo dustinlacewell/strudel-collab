@@ -60,6 +60,23 @@ Strudel makes heavy use of chained functions. Here is a more sophisticated examp
 .room(0.5)`}
 />
 
+## Write your own chained function
+
+You can write your own chained function using `register`. Here's the above chain but registered as a reusable, chained function.
+
+<MiniRepl
+  client:idle
+  tune={`const effectChain = register('effectChain', (pat) => pat
+    .s("sawtooth")
+    .cutoff(500)
+    //.delay(0.5)
+    .room(0.5)
+  )
+note("a3 c#4 e4 a4").effectChain()`}
+/>
+
+Try adding `.rev()` after `effectChain()` to hear further effects added.
+
 # Comments
 
 The `//` in the example above is a line comment, resulting in the `delay` function being ignored.

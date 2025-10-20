@@ -4,6 +4,7 @@ import { Code } from '@src/repl/components/Code';
 import UserFacingErrorMessage from '@src/repl/components/UserFacingErrorMessage';
 import { Header } from './Header';
 import { useSettings } from '@src/settings.mjs';
+import { CollabProvider } from '@src/repl/CollabContext';
 
 // type Props = {
 //  context: replcontext,
@@ -16,15 +17,17 @@ export default function ReplEditor(Props) {
   const { panelPosition, isZen } = settings;
 
   return (
-    <div className="h-full flex flex-col relative" {...editorProps}>
-      <Loader active={pending} />
-      <Header context={context} />
-      <div className="grow flex relative overflow-hidden">
-        <Code containerRef={containerRef} editorRef={editorRef} init={init} />
-        {!isZen && panelPosition === 'right' && <VerticalPanel context={context} />}
+    <CollabProvider editorRef={editorRef}>
+      <div className="h-full flex flex-col relative" {...editorProps}>
+        <Loader active={pending} />
+        <Header context={context} />
+        <div className="grow flex relative overflow-hidden">
+          <Code containerRef={containerRef} editorRef={editorRef} init={init} />
+          {!isZen && panelPosition === 'right' && <VerticalPanel context={context} />}
+        </div>
+        <UserFacingErrorMessage error={error} />
+        {!isZen && panelPosition === 'bottom' && <HorizontalPanel context={context} />}
       </div>
-      <UserFacingErrorMessage error={error} />
-      {!isZen && panelPosition === 'bottom' && <HorizontalPanel context={context} />}
-    </div>
+    </CollabProvider>
   );
 }

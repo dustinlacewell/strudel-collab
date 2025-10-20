@@ -84,6 +84,7 @@ Pattern.prototype.onPaint = function (painter) {
       state.controls.painters = [];
     }
     state.controls.painters.push(painter);
+    return state;
   });
 };
 

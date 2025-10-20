@@ -121,13 +121,20 @@ function githubPath(base, subpath = '') {
   if (!base.startsWith('github:')) {
     throw new Error('expected "github:" at the start of pseudoUrl');
   }
-  let [_, path] = base.split('github:');
+  let path = base.slice('github:'.length);
   path = path.endsWith('/') ? path.slice(0, -1) : path;
-  if (path.split('/').length === 2) {
-    // assume main as default branch if none set
-    path += '/main';
+
+  let components = path.split('/');
+  let user = components[0];
+  let repo = components.length >= 2 ? components[1] : 'samples';
+  let branch = components.length >= 3 ? components[2] : 'main';
+  let other = components.slice(3);
+  if (subpath) {
+    other.push(subpath);
   }
-  return `https://raw.githubusercontent.com/${path}/${subpath}`;
+  other = other.join('/');
+
+  return `https://raw.githubusercontent.com/${user}/${repo}/${branch}/${other}`;
 }
 
 export const processSampleMap = (sampleMap, fn, baseUrl = sampleMap._base || '') => {

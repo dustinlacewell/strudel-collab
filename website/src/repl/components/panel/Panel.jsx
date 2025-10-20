@@ -8,6 +8,7 @@ import { SoundsTab } from './SoundsTab';
 import { useLogger } from '../useLogger';
 import { WelcomeTab } from './WelcomeTab';
 import { PatternsTab } from './PatternsTab';
+import { CollabTab } from './CollabTab';
 import { ChevronLeftIcon, XMarkIcon } from '@heroicons/react/16/solid';
 
 const TAURI = typeof window !== 'undefined' && window.__TAURI__;
@@ -81,6 +82,7 @@ const tabNames = {
   sounds: 'sounds',
   reference: 'reference',
   console: 'console',
+  collab: 'collab',
   settings: 'settings',
 };
 if (TAURI) {
@@ -126,6 +128,8 @@ function PanelContent({ context, tab }) {
       return <SoundsTab />;
     case tabNames.reference:
       return <Reference />;
+    case tabNames.collab:
+      return <CollabTab context={context} />;
     case tabNames.settings:
       return <SettingsTab started={context.started} />;
     case tabNames.files:
